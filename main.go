@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -9,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -53,6 +55,35 @@ func (item *ItemStatus) Scan(value interface{}) error {
 	return nil
 }
 
+func (item *ItemStatus) Value() (driver.Value, error) {
+	if item == nil {
+		return nil, nil
+	}
+	return item.String(), nil
+}
+
+func (item *ItemStatus) MarshalJSON() ([]byte, error) {
+	if item == nil {
+		return nil, nil
+	}
+
+	return []byte(fmt.Sprintf("\"%s\"", item.String())), nil
+}
+
+func (item *ItemStatus) UnmarshalJSON(data []byte) error {
+	str := strings.ReplaceAll(string(data), "\"", "")
+
+	itemValue, err := parseStr2ItemStatus(str)
+
+	if err != nil {
+		return err
+	}
+
+	*item = itemValue
+
+	return nil
+}
+
 type TodoItem struct {
 	Id          int         `json:"id" gorm:"column:id;"`
 	Title       string      `json:"title" gorm:"column:title;"`
@@ -63,9 +94,10 @@ type TodoItem struct {
 }
 
 type TodoItemCreation struct {
-	Id          int    `json:"-" gorm:"column:id;"`
-	Title       string `json:"title" gorm:"column:title;"`
-	Description string `json:"description" gorm:"column:description;"`
+	Id          int         `json:"-" gorm:"column:id;"`
+	Title       string      `json:"title" gorm:"column:title;"`
+	Description string      `json:"description" gorm:"column:description;"`
+	Status      *ItemStatus `json:"status" gorm:"column:status;"`
 }
 
 type TodoItemUpdate struct {
